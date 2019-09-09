@@ -1,7 +1,8 @@
-from apiclient.discovery import build
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 import datetime
-from httplib2 import Http
-from oauth2client import file, client, tools
+import pickle
 import card_read
 import os
 import pandas as pd
@@ -9,17 +10,26 @@ import time
 
 tmp_database_path = os.getcwd() + "/temp_database.csv"
 
-
-SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
-store = file.Storage('token.json')
-credentials = store.get()
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 
-if not credentials or credentials.invalid:
-    flow = client.flow_from_clientsecrets('credentials.json', SCOPES)
-    credentials = tools.run_flow(flow, store)
-service = build('sheets', 'v4', http=credentials.authorize(Http()))
+creds = None
+if os.path.exists('token.pickle'):
+    with open('token.pickle', 'rb') as token:
+        creds = pickle.load(token)
+    
+if not creds or not creds.valid:
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    else:
+        flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+        creds = flow.run_local_server(port=0)
+        
+    with open('token.pickle', 'wb') as token:
+        pickle.dump(creds, token)
 
+service = build('sheets', 'v4', credentials=creds)
 
 spreadsheet_id = '***********************'
 range_ = 'Sheet1!A:F'
@@ -29,7 +39,6 @@ employee_card = {"*****": "***",
 
 gym_card = {"CARD1": "*****",
             "CARD2": "*****"}
-
 
 def add_entry(time, employee_name, card_name, RowNumber):
 
@@ -120,10 +129,12 @@ if __name__ == '__main__':
     while True:
 
         if Employee_card:
-
+            print "Punch the Employee card"
             while True:
-                print "Punch the Employee card"
+                
+
                 ID = card_read.read()
+        
                 if len(ID) == 0:
                     not_punched = True
                     break
@@ -144,11 +155,12 @@ if __name__ == '__main__':
         time.sleep(2)
 
         if Gym_card:
-
+            print "Punch the gym Card"
             while True:
 
-                print "Punch the gym Card"
+                
                 ID = card_read.read()
+
                 if len(ID) == 0:
                     not_punched = True
                     break
